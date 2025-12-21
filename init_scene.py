@@ -247,13 +247,13 @@ if __name__ == '__main__':
 
     jn = [
         "torso_joint_b1",
-        "arm_left_joint_1_s",
-        "arm_left_joint_2_l",
-        "arm_left_joint_3_e",
-        "arm_left_joint_4_u",
-        "arm_left_joint_5_r",
-        "arm_left_joint_6_b",
-        "arm_left_joint_7_t"
+        "arm_right_joint_1_s",
+        "arm_right_joint_2_l",
+        "arm_right_joint_3_e",
+        "arm_right_joint_4_u",
+        "arm_right_joint_5_r",
+        "arm_right_joint_6_b",
+        "arm_right_joint_7_t"
     ]
     lctrl = get_ctrl_indices(
         world, ["sda10f/" + j for j in jn]

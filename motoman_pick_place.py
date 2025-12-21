@@ -9,6 +9,7 @@ import numpy as np
 from init_scene import *
 from ompl import geometric as og
 
+
 robot_xml = 'motoman/motoman.xml'
 assets_dir = 'motoman/meshes'
 scene_json = 'scene_table1.json'
@@ -21,25 +22,49 @@ qinds = get_qpos_indices(world)
 
 dt = 0.001
 world.opt.timestep = dt
-ik_solver = TracIKSolver(
-    "./motoman/motoman_dual.urdf",
-    "base_link",
-    "motoman_left_ee",
+# ik_solver = TracIK(
+#     "./motoman/motoman_dual.urdf",
+#     "base_link",
+#     "motoman_left_ee",
+# )
+
+ik_solver = TracIK(
+    base_link_name="base_link",
+    tip_link_name="motoman_left_ee",
+    urdf_path="./motoman/motoman_dual.urdf",
 )
-lctrl = get_ctrl_indices(world, ["sda10f/" + j for j in ik_solver.joint_names])
-qindl = get_qpos_indices(world, ["sda10f/" + j for j in ik_solver.joint_names])
+
+jn = [
+    "torso_joint_b1",
+"arm_left_joint_1_s",
+"arm_left_joint_2_l",
+"arm_left_joint_3_e",
+"arm_left_joint_4_u",
+"arm_left_joint_5_r",
+"arm_left_joint_6_b",
+"arm_left_joint_7_t"
+]
+
+# lctrl = get_ctrl_indices(world, ["sda10f/" + j for j in ik_solver.joint_names])
+# qindl = get_qpos_indices(world, ["sda10f/" + j for j in ik_solver.joint_names])
+
+lctrl = get_ctrl_indices(world, ["sda10f/" + j for j in jn])
+qindl = get_qpos_indices(world, ["sda10f/" + j for j in jn])
+
 
 ll = world.jnt_range[lctrl, 0]
 ul = world.jnt_range[lctrl, 1]
 
 
 def collision_free(state):
-    data.qpos[qindl] = [state[i] for i in range(ik_solver.number_of_joints)]
+    # data.qpos[qindl] = [state[i] for i in range(ik_solver.number_of_joints)]
+    data.qpos[qindl] = [state[i] for i in range(8)]
     mujoco.mj_step1(world, data)
     return len(data.contact) <= 1
 
 
-planner = Planner(ik_solver.number_of_joints, ll, ul, collision_free)
+# planner = Planner(ik_solver.number_of_joints, ll, ul, collision_free)
+planner = Planner(8, ll, ul, collision_free)
 t1 = time.time()
 print("total init:", t1 - t0)
 
@@ -47,8 +72,10 @@ print("total init:", t1 - t0)
 ## IK for target position
 def get_ik(pose, qinit, max_tries=100):
     c = 0
+    pose_rot = pose[:3,:3]
+    pose_pos = pose[:3,3]
     while c < max_tries:
-        q = ik_solver.ik(pose, qinit=qinit)
+        q = ik_solver.ik(pose_pos,pose_rot, qinit)
         if q is not None:
             break
         c += 1
@@ -63,7 +90,8 @@ ee_pose[:3, 3] = data.qpos[get_objq_indices(world, "bpick")[:3]
                            ] - [world.geom("gpick").size[0] + 0.05, 0, 0]
 print(ee_pose)
 t0 = time.time()
-qout = get_ik(ee_pose, qinit=np.zeros(ik_solver.number_of_joints))
+# qout = get_ik(ee_pose, qinit=np.zeros(ik_solver.number_of_joints))
+qout = get_ik(ee_pose, qinit=np.zeros(8))
 ee_pose[:3, 3] = data.qpos[get_objq_indices(world, "bpick")[:3]
                            ] - [world.geom("gpick").size[0], 0, 0]
 qout2 = get_ik(ee_pose, qinit=qout)
@@ -77,7 +105,8 @@ t1 = time.time()
 print("ik:", t1 - t0, qout)
 
 ## Motion plan to joint goal
-start = np.zeros(ik_solver.number_of_joints)
+# start = np.zeros(ik_solver.number_of_joints)
+start = np.zeros(8)
 goal = qout
 goal2 = qout2
 goal3 = qout3

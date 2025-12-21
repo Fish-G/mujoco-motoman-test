@@ -5,13 +5,14 @@ import glob
 import time
 
 import numpy as np
+import pytracik
 import transformations as tf
 
 import mujoco_viewer
 from dm_control import mjcf
 from dm_control import mujoco
 
-from tracikpy import TracIKSolver
+from trac_ik import TracIK
 
 from planner import Planner
 
@@ -88,7 +89,7 @@ def load_scene_workspace(robot_xml, scene_json):
         </body>
         <body name="bpick" pos="0.8 -0.3 1.05">
           <freejoint/>
-          <geom name="gpick" size=".03 .03 .03" type="box" rgba=".5 .1 .5 1" mass="0.001" contype="3" conaffinity="3" />
+          <geom name="gpick" size=".03 .03 .03" type="box" rgba=".1 .1 .9 1" mass="0.001" contype="3" conaffinity="3" />
         </body>
       </worldbody>
     </mujoco>
@@ -224,24 +225,38 @@ if __name__ == '__main__':
     dt = 0.001
     world.opt.timestep = dt
 
-    ee_pose = tf.euler_matrix(-np.pi / 2, -np.pi / 2, -np.pi / 2)
-    ee_pose[:3, 3] = world.body("bpick").pos
+    ee_pose_rot = tf.euler_matrix(-np.pi / 2, -np.pi / 2, -np.pi / 2)[:3, :3]
+    #ee_pose[:3, 3] = world.body("bpick").pos
+    ee_pose_pos = world.body("bpick").pos
+    print(ee_pose_rot)
+    print(ee_pose_pos)
 
     bd = world.body("phys")
     jnt = world.joint(bd.jntadr[0])
 
-    ik_solver = TracIKSolver(
-        "./motoman/motoman_dual.urdf",
-        "base_link",
-        "motoman_right_ee",
+    ik_solver = TracIK(
+        base_link_name="base_link",
+        tip_link_name="motoman_right_ee",
+        urdf_path="./motoman/motoman_dual.urdf",
     )
+
     t0 = time.time()
-    qout = ik_solver.ik(ee_pose, qinit=np.zeros(ik_solver.number_of_joints))
+    qout = ik_solver.ik(ee_pose_pos,ee_pose_rot, np.zeros(8))
     t1 = time.time()
     print("ik-test:", t1 - t0, qout)
 
+    jn = [
+        "torso_joint_b1",
+        "arm_left_joint_1_s",
+        "arm_left_joint_2_l",
+        "arm_left_joint_3_e",
+        "arm_left_joint_4_u",
+        "arm_left_joint_5_r",
+        "arm_left_joint_6_b",
+        "arm_left_joint_7_t"
+    ]
     lctrl = get_ctrl_indices(
-        world, ["sda10f/" + j for j in ik_solver.joint_names]
+        world, ["sda10f/" + j for j in jn]
     )
 
     # print(mujoco.MjModel.njnt)

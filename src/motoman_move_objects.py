@@ -3,9 +3,10 @@ import math
 import re
 import time
 import typing
-
+import random
 import json
 import mujoco_viewer
+from cloudinit.subp import target_path
 from dm_control import mjcf
 from dm_control import mujoco
 from init_scene import asset_dict
@@ -20,12 +21,12 @@ def asset_dict(assets_dir):
     return ASSETS
 
 
-def obj_coordinates(obj):
-    scale_factor = 0.02
-    translate = np.array([0.8, 0, 0.2])
-    pos = scale_factor * np.array([obj["bottom_left_pos"]["y"], obj["bottom_left_pos"]["x"], obj["bottom_left_pos"]["z"]])
+def tgt_obj_coordinates(obj):
+    scale_factor = 0.03
+    translate = np.array([0.75, 0, 0.17])
+    pos = scale_factor * np.array([obj["bottom_left_pos"]["y"] + 0.5*obj["dimensions"]["depth_y"], obj["bottom_left_pos"]["x"] + 0.5*obj["dimensions"]["width_x"], obj["bottom_left_pos"]["z"] + 0.5*obj["dimensions"]["height_z"]])
 
-    shape = scale_factor * np.array([obj["dimensions"]["width_x"]/2, obj["dimensions"]["depth_y"]/2, obj["dimensions"]["height_z"]/2], dtype=np.float64)
+    shape = scale_factor * np.array([0.5*obj["dimensions"]["width_x"], 0.5*obj["dimensions"]["depth_y"], 0.5*obj["dimensions"]["height_z"]], dtype=np.float64)
 
     pos += translate
 
@@ -43,16 +44,20 @@ def load_objects(world, object_json: str):
     objects = scene_dict["objects"]
     print(objects)
 
-    for obj in objects:
+    for i, obj in enumerate(objects):
         # print(obj)
-        pos, shape = obj_coordinates(obj)
+        pos, shape = tgt_obj_coordinates(obj)
         print(pos, shape)
-        body = world.worldbody.add("body", name=f"obj_{obj["id"]}", pos=f"{pos[0]} {pos[1]} {pos[2]}")
+        target_body = world.worldbody.add("body", name=f"obj_{obj["id"]}_tgt", pos=f"{pos[0]} {pos[1]} {pos[2]}")
 
-        body.add("joint", type="free")
-        body.add("geom", type="box", size=f"{shape[0]} {shape[1]} {shape[2]}", rgba="1 0 0 1", quat="0.707107 0 0 0.707107")
+        # body.add("joint", type="free")
+        color = f"{random.random()} {random.random()} {random.random()}"
+        target_body.add("geom", type="box", size=f"{shape[0]} {shape[1]} {shape[2]}", rgba=f"{color} 0.2", quat="0.707107 0 0 0.707107")
 
 
+        obj_body = world.worldbody.add("body", name=f"obj_{obj["id"]}", pos=f"{-0.6 + i/10} 1 0.2")
+        obj_body.add("geom", type="box", size=f"{shape[0]} {shape[1]} {shape[2]}", rgba=f"{color} 1")
+        obj_body.add("joint", type="free")
 
 def init(robot_xml: str, assets_dir: str, scene_xml: str, scene_objects: str, gui=True):
     world = mjcf.from_path(scene_xml)
